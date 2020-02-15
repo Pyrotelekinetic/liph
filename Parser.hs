@@ -41,6 +41,8 @@ data Sexp
   | Sexp := Sexp
   | Nil
 
+infixr 5 :=
+
 type Table = (String, Sexp)
 
 instance Show Sexp where
@@ -57,8 +59,6 @@ runParser (MakeParser f) s = f s
 
 
 
-
----- PRIMITIVE ----
 
 -- always fails
 failP :: Parser a
@@ -107,14 +107,6 @@ stringP = \case
     cs <- stringP xs
     return $ c : cs
 
--- parses a negative number
-negativeP :: Parser Sexp
-negativeP = do
-  spaceP
-  n <- charP '-'
-  i <- numP
-  return $ (Func minus) := ((Int 0) := (Int i))
-
 -- parses an (Atom s)
 atomP :: Parser Sexp
 atomP = do
@@ -132,7 +124,7 @@ intP :: Parser Sexp
 intP = do
   spaceP
   i <- numP
-  return (Int i) 
+  return $ Int i
 
 -- parses a parenthesized string
 parensP :: Parser a -> Parser a
@@ -164,104 +156,7 @@ unwrap = \case
   Just x -> x
 
 sexpP :: Parser Sexp
-sexpP = consP <|> intP <|> negativeP <|> atomP 
+sexpP = consP <|> intP <|> atomP 
 
-
-
-
----- BUILTINS ----
-
--- evaluates an Sexp
-eval :: Sexp -> Reader [Table] Sexp
-eval = \case
-  (Func f) := x -> do
-    x1 <- eval x
-    fx <- f x1
-    eval fx
-
-  (Atom "let") := ((Atom n) := ((Atom "=") := (x := ((Atom "in") := e)))) -> do
-    x1 <- eval x
-    local ((n, x1) :) (eval e)
-
-  (Atom a) := x -> do
-    lookupTable <- ask
-    eval $ (exists a lookupTable) := x
-  x := (Atom a) -> do
-    lookupTable <- ask
-    eval $ x := (exists a lookupTable)
-  Atom a -> do
-    lookupTable <- ask
-    return $ exists a lookupTable
-  x := y -> do
-    x1 <- eval x
-    y1 <- eval y
-    return $ x1 := y1
-  Var v -> eval v
-  x -> return x
-
-  where
-    exists :: String -> [Table] -> Sexp
-    exists s = \case
-      [] -> Atom s
-      (n, f) : ts
-        | n == s -> f
-        | otherwise -> exists s ts
-
-
-plus :: Sexp -> Reader [Table] Sexp
-plus = \case
-  (Int x) := (Int y) -> return $ Int (x + y)
-  (Int x) := Nil -> return $ Int x
-  (Int x) := y -> do
-    y1 <- plus y
-    plus $ (Int x) := y1
-  _ -> return $ Atom "Type Error: '+' takes Ints"
-
-minus :: Sexp -> Reader [Table] Sexp
-minus = \case
-  (Int x) := ((Int y) := Nil) -> return $ Int (x - y)
-  _ -> return $ Atom "Type Error: '-' takes two Ints"
-
-multiply :: Sexp -> Reader [Table] Sexp
-multiply = \case
-  (Int x) := (Int y) -> return $ Int (x * y)
-  (Int x) := Nil -> return $ Int x
-  (Int x) := y -> do
-    y1 <- multiply y
-    multiply $ (Int x) := y1
-  _ -> return $ Atom "Type Error: '*' takes Ints"
-
-divide :: Sexp -> Reader [Table] Sexp
-divide = \case
-  (Int x) := ((Int 0) := Nil) -> return $ Atom "Please do not divide by zero"
-  (Int x) := ((Int y) := Nil) -> return $ Int (div x y)
-  _ -> return $ Atom "Type Error: '/' takes two Ints"
-
-gLet :: Sexp -> Reader [Table] Sexp
-gLet = \case
-  (Atom n) := ((Atom "=") := x) -> do
-    return $ Atom "This should define a global"
-  _ -> return $ Atom "Global def failure"
---  (Atom x) := (Atom "=") := y -> do
---    local ((x, y) :)
-
-defun :: Sexp -> Reader [Table] Sexp
-defun = \case
-  (Atom fn) := xs := d -> return $ Atom "This should define a function"
-  _ -> return $ Atom "Func Def Error"
-
-
-arithmetic :: [Table]
-arithmetic =
-  [("+", Func plus)
-  ,("-", Func minus)
-  ,("*", Func multiply)
-  ,("/", Func divide)
-  ]
-
-builtins :: [Table]
-builtins = ("defun", Func defun) : ("let", Func gLet) : arithmetic
-
-runEval :: Sexp -> Sexp
-runEval = flip runReader initState . eval where
-  initState = builtins
+parse :: String -> Sexp
+parse = unwrap . finishedP . runParser sexpP

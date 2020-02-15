@@ -1,10 +1,9 @@
-import Parser
-
-parse :: String -> Sexp
-parse = unwrap . finishedP . runParser sexpP
+import Parser (parse)
+import Builtins (runEval)
 
 main = do
+  putStr "> "
   input <- getLine
-  print $ parse input
+  print $ parse $ "(" ++ input ++ ")"
   print $ runEval $ parse input
   main
