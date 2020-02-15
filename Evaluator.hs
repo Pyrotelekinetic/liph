@@ -1,6 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 
-module Builtins where
+module Evaluator where
 
 import Parser (Sexp (..), Table)
 
