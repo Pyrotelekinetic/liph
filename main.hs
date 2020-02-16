@@ -5,5 +5,6 @@ main = do
   putStr "> "
   input <- getLine
   print $ parse $ "(" ++ input ++ ")"
-  print $ runEval $ parse input
+--  print $ parse input
+  print $ runEval $ parse $ "(" ++ input ++ ")"
   main

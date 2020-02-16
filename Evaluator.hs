@@ -13,7 +13,6 @@ eval = \case
     x1 <- eval x
     fx <- f x1
     eval fx
-
   Atom a := x -> do
     lookupTable <- ask
     eval $ (exists a lookupTable) := x
@@ -29,7 +28,6 @@ eval = \case
     return $ x1 := y1
   Var v -> eval v
   x -> return x
-
   where
     exists :: String -> [Table] -> Sexp
     exists s = \case
