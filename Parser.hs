@@ -37,21 +37,28 @@ data Sexp
   = Atom String
   | Int Integer
   | Var Sexp
-  | Func (Sexp -> Reader [Table] Sexp)
+--  | Func (Sexp -> Reader [Table] Sexp)
+--  | Func (Sexp -> Sexp)
+--  | Func ([Table] -> Sexp -> Sexp)
+  | Func (State -> State)
   | Sexp := Sexp
   | Nil
 
 infixr 5 :=
 
 type Table = (String, Sexp)
+type State = ([Table], Sexp)
 
 instance Show Sexp where
   show = \case
-    Atom x -> "A<" ++ x ++ ">"
+    Atom x -> "A\"" ++ x ++ "\""
     Int x -> "I<" ++ show x ++ ">"
-    Func _ -> "<F>"
+    Func x -> "<F>"
     Var v -> "V<" ++ show v ++ ">"
-    x := y -> "(" ++ show x ++ " := " ++ show y ++ ")"
+    (x := y) -> case x := y of
+      (a := b) := c -> "(" ++ show a ++ " := " ++ show b ++ ")" ++ " := " ++ show c
+      a := (b := c) -> show a ++ " := " ++ "(" ++ show b ++ " := " ++ show c ++ ")"
+      _ -> show x ++ " := " ++ show y
     Nil -> "()"
 
 runParser :: Parser a -> String -> Maybe (a, String)
