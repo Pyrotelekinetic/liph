@@ -1,5 +1,5 @@
 import Parser (parse)
-import Evaluator (runEval)
+import Eval (runEval)
 
 main = do
   putStr "> "
