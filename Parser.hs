@@ -34,15 +34,13 @@ instance Alternative Parser where
       Just x -> Just x
 
 data Sexp
-  = Atom String
-  | Int Integer
-  | Var Sexp
---  | Func (Sexp -> Reader [Table] Sexp)
---  | Func (Sexp -> Sexp)
---  | Func ([Table] -> Sexp -> Sexp)
-  | Func (State -> State)
+  = AtomL String
+  | IntL Integer
+  | BoolL Bool
+  | VarL Sexp
+  | FuncL (State -> State)
   | Sexp := Sexp
-  | Nil
+  | NilL
 
 infixr 5 :=
 
@@ -51,15 +49,18 @@ type State = ([Table], Sexp)
 
 instance Show Sexp where
   show = \case
-    Atom x -> "A\"" ++ x ++ "\""
-    Int x -> "I<" ++ show x ++ ">"
-    Func x -> "<F>"
-    Var v -> "V<" ++ show v ++ ">"
+    AtomL x -> "A\"" ++ x ++ "\""
+    IntL x -> "I<" ++ show x ++ ">"
+    BoolL x -> case x of
+      True -> "<#t>"
+      False -> "<#f>"
+    FuncL x -> "<F>"
+    VarL v -> "V<" ++ show v ++ ">"
     (x := y) -> case x := y of
       (a := b) := c -> "(" ++ show a ++ " := " ++ show b ++ ")" ++ " := " ++ show c
       a := (b := c) -> show a ++ " := " ++ "(" ++ show b ++ " := " ++ show c ++ ")"
       _ -> show x ++ " := " ++ show y
-    Nil -> "()"
+    NilL -> "()"
 
 runParser :: Parser a -> String -> Maybe (a, String)
 runParser (MakeParser f) s = f s
@@ -95,7 +96,7 @@ wordP :: Parser String
 wordP = do
   spaceP
   some (satisfy $ flip elem chars) where
-    chars = ['a' .. 'z'] ++ ['A' .. 'Z'] ++ ['0' .. '9'] ++ ['+', '-', '*', '/', '=']
+    chars = ['a' .. 'z'] ++ ['A' .. 'Z'] ++ ['0' .. '9'] ++ ['+', '-', '*', '/', '=', '#']
 
 wordP' :: (Char -> Bool) -> Parser String
 wordP' p = do
@@ -114,11 +115,11 @@ stringP = \case
     cs <- stringP xs
     return $ c : cs
 
--- parses an (Atom s)
+-- parses an (AtomL s)
 atomP :: Parser Sexp
 atomP = do
   s <- wordP
-  return (Atom s)
+  return (AtomL s)
 
 -- parses an integer
 numP :: Parser Integer
@@ -126,12 +127,12 @@ numP = do
   ns <- some $ satisfy isDigit
   return $ read ns
 
--- parses an (Int i)
+-- parses an (IntL i)
 intP :: Parser Sexp
 intP = do
   spaceP
   i <- numP
-  return $ Int i
+  return $ IntL i
 
 -- parses a parenthesized string
 parensP :: Parser a -> Parser a
@@ -148,7 +149,7 @@ parensP p = do
 consP :: Parser Sexp
 consP = do
  cells <- parensP $ many sexpP
- return $ foldr (:=) Nil cells
+ return $ foldr (:=) NilL cells
 
 -- confirms complete parse
 finishedP :: Maybe (a, String) -> Maybe a
@@ -159,7 +160,7 @@ finishedP = \case
 -- deals with potentioal parse failure
 unwrap :: Maybe Sexp -> Sexp
 unwrap = \case
-  Nothing -> Atom "Parse Failure"
+  Nothing -> AtomL "Parse Failure"
   Just x -> x
 
 sexpP :: Parser Sexp
