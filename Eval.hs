@@ -4,103 +4,163 @@ module Eval where
 
 import Parser (Sexp (..), Table, State)
 
-import Debug.Trace
+--import Debug.Trace
+
+table :: State -> [Table]
+table = fst
+
+sexp :: State -> Sexp
+sexp = snd
 
 eval :: State -> State
---eval table = \case
-eval (t, e) = trace ("calling eval on\n    " ++ show e ++ "\nwith\n    " ++ show t ++ "\n\n") $ case e of
-  Func f := x -> eval $ f (t, x)
-  Atom a := x -> eval (t, (exists a t) := x)
+eval (t, e) = case e of
+--eval (t, e) = trace ("calling eval on\n    " ++ show e ++ "\nwith\n    " ++ show t ++ "\n\n") $ case e of
+  FuncL f := x -> f (t, x)
+  AtomL a := x -> eval (t, getBind (t, AtomL a) := (sexp $ eval (t, x)))
+--  AtomL a -> eval (t, getBind (t, AtomL a))
   x := y -> (ty, x' := y')
     where
     (tx, x') = eval (t, x)
     (ty, y') = eval (tx, y)
   x -> (t, x)
 
-exists :: String -> [Table] -> Sexp
-exists s = \case
-  [] -> Atom s
-  (n, f) : ts
+getBind :: State -> Sexp
+getBind = \case
+  ([], AtomL s) -> AtomL s
+  ((n, f) : ts, AtomL s)
     | n == s -> f
-    | otherwise -> exists s ts
+    | otherwise -> getBind (ts, AtomL s)
 
--- sums a list of Ints
+
+-- Arithmetic --
+
+-- sums a list of IntLs
 plusL :: State -> State
---plusL table e = case eval table e of
-plusL (t, e) = trace ("calling eval on:\n    " ++ show e ++ "\nwith:\n    " ++ show t) $ case eval (t, e) of
-  (t', Int x := Int y) -> (t', Int (x + y))
-  (t', Int x := Nil) -> (t, Int x)
-  (t', Int x := y) -> plusL (t', Int x := y')
-    where
-    y' = snd $ plusL (t', y)
-  _ -> (t, Atom "Type Error: '+' takes Ints")
+plusL x = case eval x of
+--plusL (t, e) = trace ("calling eval on:\n    " ++ show e ++ "\nwith:\n    " ++ show t) $ case eval (t, e) of
+  (t', IntL n1 := IntL n2) -> (t', IntL (n1 + n2))
+  (t', IntL n := NilL) -> (t', IntL n)
+  (t', IntL n1 := n2) -> plusL (t', IntL n1 := (sexp $ plusL (t', n2)))
+  (t', _) -> (t', AtomL "Type Error: '+' takes Ints")
 
--- subtracts two Ints
+-- subtracts two IntLs
 minusL :: State -> State
-minusL (t, e) = case eval (t, e) of
-  (t', Int x := Int y := Nil) -> (t', Int (x - y))
-  _ -> (t, Atom "Type Error: '-' takes two Ints")
+minusL x = case eval x of
+  (t', IntL n1 := IntL n2 := NilL) -> (t', IntL (n1 - n2))
+  (t', _) -> (t', AtomL "Type Error: '-' takes two Ints")
 
--- multiplies two Ints
+-- multiplies two IntLs
 multiplyL :: State -> State
-multiplyL (t, e) = case eval (t, e) of
-  (t', Int x := Int y) -> (t', Int (x * y))
-  (t', Int x := Nil) -> (t', Int x)
-  (t', Int x := y) -> multiplyL (t', Int x := y')
+multiplyL x = case eval x of
+  (t', IntL n1 := IntL n2) -> (t', IntL (n1 * n2))
+  (t', IntL n := NilL) -> (t', IntL n)
+  (t', IntL n1 := n2) -> multiplyL (t', IntL n1 := (sexp $ multiplyL (t', n2)))
     where
-    y' = snd $ multiplyL (t', y)
-  _ -> (t, Atom "Type Error: '*' takes Ints")
+    n2' = sexp $ multiplyL (t', n2)
+  (t', _) -> (t', AtomL "Type Error: '*' takes IntLs")
 
--- divides two Ints
+-- divides two IntLs
 divideL :: State -> State
-divideL (t, e) = case eval (t, e) of
-  (t', Int x := Int 0 := Nil) -> (t', Atom "Please do not divide by zero")
-  (t', Int x := Int y := Nil) -> (t', Int (div x y))
-  _ -> (t, Atom "Type Error: '/' takes two Ints")
+divideL x = case eval x of
+  (t', IntL _ := IntL 0 := NilL) -> (t', AtomL "Please do not divide by zero")
+  (t', IntL n1 := IntL n2 := NilL) -> (t', IntL (div n1 n2))
+  (t', _) -> (t', AtomL "Type Error: '/' takes two IntLs")
 
--- negates one Int
+-- negates one IntL
 negativeL :: State -> State
-negativeL (t, e) = case eval (t, e) of
-  (t', Int x) -> (t', Int (- x))
-  _ -> (t, Atom "Type Error: 'neg' takes one Int")
+negativeL x = case eval x of
+  (t', IntL n) -> (t', IntL (- n))
+  (t', _) -> (table x, AtomL "Type Error: 'neg' takes one IntL")
+
+arithmetics :: [Table]
+arithmetics =
+  [ ("+", FuncL plusL)
+  , ("-", FuncL minusL)
+  , ("*", FuncL multiplyL)
+  , ("/", FuncL divideL)
+  , ("neg", FuncL negativeL)
+  ]
+
+
+-- Let --
 
 -- defines a new variable
 letL :: State -> State
 --letL t = \case
-letL (t, e) = case (t, e) of
-  (t, Atom n := Atom "=" := x := Atom "in" := e) -> (t, e')
+letL = \case
+  (t, AtomL n := AtomL "=" := x := AtomL "in" := e) -> (t', e')
     where
     t' = (n, x) : t
-    e' = snd $ eval (t', e)
-  (t, Atom n := Atom "=" := x := e) -> (t', Nil)
-    where
-    t' = (n, x) : t
-  _ -> (t, Atom "let Error")
+    e' = sexp $ eval (t', e)
+  (t, AtomL n := AtomL "=" := x := e) -> ((n, x) : t, NilL)
+  (t, _) -> (t, AtomL "let Error")
 
--- TODO --
--- defines a function
-defunL :: State -> State
-defunL (t, e) = trace ("calling defun on\n    " ++ show e) $ case e of
-  Atom n := xs := d -> (parseFun t n xs d, Nil)
-    where
-    parseFun :: [Table] -> String -> Sexp -> Sexp -> [Table]
-    parseFun t n xs = \case
-      (Atom f := xs) -> trace "pattern match success!" $ case exists f t of
-        Func fL -> trace "defun success!" $ (f, Func fL) : t
-        _ -> trace "defun fail" t
-      _ -> trace "pattern match failed\n" t
+lambdaL :: State -> State
+lambdaL = \case
+  (t, xs := d := e) -> (t, AtomL "passed")
+  (t, _) -> (t, AtomL "error")
 
-arithmetic :: [Table]
-arithmetic =
-  [ ("+", Func plusL)
-  , ("-", Func minusL)
-  , ("*", Func multiplyL)
-  , ("/", Func divideL)
-  , ("neg", Func negativeL)
+letT :: [Table]
+letT =
+  [ ("let", FuncL letL)
+  , ("lambda", FuncL lambdaL)
   ]
 
+
+-- Bools --
+
+andL :: State -> State
+andL (t, x) = case stripNilL $ snd $ eval (t, x) of
+  BoolL True := BoolL True -> (t, BoolL True)
+  BoolL _ := BoolL _ -> (t, BoolL False)
+  _ -> (t, AtomL "Type Error: 'and' takes two Bools")
+
+orL :: State -> State
+orL (t, x) = case stripNilL $ snd $ eval (t, x) of
+  BoolL True := BoolL _ -> (t, BoolL True)
+  BoolL _ := BoolL True -> (t, BoolL True)
+  _ -> (t, AtomL "Type Error: 'or' takes two Bools")
+
+xorL :: State -> State
+xorL (t, x) = case stripNilL $ snd $ eval (t, x) of
+  BoolL True := BoolL False -> (t, BoolL True)
+  BoolL False := BoolL True -> (t, BoolL True)
+  BoolL _ := BoolL _ -> (t, BoolL False)
+  _ -> (t, AtomL "Type Error: 'xor' takes two Bools")
+
+notL :: State -> State
+notL (t, x) = case stripNilL $ snd $ eval (t, x) of
+  BoolL True -> (t, BoolL False)
+  BoolL False -> (t, BoolL True)
+  _ -> (t, AtomL "Type Error: 'not' takes one Bool")
+
+ifL :: State -> State
+ifL (t, p := e) = case stripNilL $ snd $ eval (t, p) of
+  BoolL True -> eval (t, e)
+  BoolL False -> (t, NilL)
+  _ -> (t, AtomL "Type Error: 'if' takes one Bool and one expression")
+
+bools :: [Table]
+bools =
+  [ ("#t", BoolL True)
+  , ("#f", BoolL False)
+  , ("and", FuncL andL)
+  , ("or", FuncL orL)
+  , ("xor", FuncL xorL)
+  , ("not", FuncL notL)
+  , ("if", FuncL ifL)
+  ]
+
+
 builtins :: [Table]
-builtins = ("let", Func letL) : ("defun", Func defunL) : arithmetic
+builtins = arithmetics ++ bools ++ letT
+
+stripNilL :: Sexp -> Sexp
+stripNilL = \case
+  x := NilL -> stripNilL x
+  NilL := x -> stripNilL x
+  x := y -> stripNilL x := stripNilL y
+  x -> x
 
 runEval :: Sexp -> Sexp
-runEval x = snd $ eval (builtins, x)
+runEval x = stripNilL $ sexp $ eval (builtins, x)
