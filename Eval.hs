@@ -97,17 +97,17 @@ letL = \case
 
 lambdaL :: State -> State
 lambdaL = \case
-  (t, xs := d := e) -> (t, AtomL "passed")
+  (t, xs := e) -> (t, AtomL "passed")
   (t, _) -> (t, AtomL "error")
 
-letT :: [Table]
-letT =
+lets :: [Table]
+lets =
   [ ("let", FuncL letL)
   , ("lambda", FuncL lambdaL)
   ]
 
 
--- Bools --
+-- Bool --
 
 andL :: State -> State
 andL (t, x) = case stripNilL $ snd $ eval (t, x) of
@@ -143,7 +143,9 @@ ifL (t, p := e) = case stripNilL $ snd $ eval (t, p) of
 bools :: [Table]
 bools =
   [ ("#t", BoolL True)
+  , ("#T", BoolL True)
   , ("#f", BoolL False)
+  , ("#F", BoolL False)
   , ("and", FuncL andL)
   , ("or", FuncL orL)
   , ("xor", FuncL xorL)
@@ -153,7 +155,7 @@ bools =
 
 
 builtins :: [Table]
-builtins = arithmetics ++ bools ++ letT
+builtins = arithmetics ++ bools ++ lets
 
 stripNilL :: Sexp -> Sexp
 stripNilL = \case
