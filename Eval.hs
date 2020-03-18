@@ -6,7 +6,7 @@ import Parser (Sexp (..), Table, State)
 
 --import Debug.Trace
 
-table :: State -> [Table]
+table :: State -> Table
 table = fst
 
 sexp :: State -> Sexp
@@ -72,7 +72,7 @@ negativeL x = case eval x of
   (t', IntL n) -> (t', IntL (- n))
   (t', _) -> (table x, AtomL "Type Error: 'neg' takes one IntL")
 
-arithmetics :: [Table]
+arithmetics :: Table
 arithmetics =
   [ ("+", FuncL plusL)
   , ("-", FuncL minusL)
@@ -100,7 +100,7 @@ lambdaL = \case
   (t, xs := e) -> (t, AtomL "passed")
   (t, _) -> (t, AtomL "error")
 
-lets :: [Table]
+lets :: Table
 lets =
   [ ("let", FuncL letL)
   , ("lambda", FuncL lambdaL)
@@ -140,7 +140,7 @@ ifL (t, p := e) = case stripNilL $ snd $ eval (t, p) of
   BoolL False -> (t, NilL)
   _ -> (t, AtomL "Type Error: 'if' takes one Bool and one expression")
 
-bools :: [Table]
+bools :: Table
 bools =
   [ ("#t", BoolL True)
   , ("#T", BoolL True)
@@ -154,7 +154,7 @@ bools =
   ]
 
 
-builtins :: [Table]
+builtins :: Table
 builtins = arithmetics ++ bools ++ lets
 
 stripNilL :: Sexp -> Sexp

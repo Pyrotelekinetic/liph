@@ -44,8 +44,8 @@ data Sexp
 
 infixr 5 :=
 
-type Table = (String, Sexp)
-type State = ([Table], Sexp)
+type Table = [(String, Sexp)]
+type State = (Table, Sexp)
 
 instance Show Sexp where
   show = \case
