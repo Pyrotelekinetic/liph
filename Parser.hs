@@ -54,10 +54,7 @@ instance Show Sexp where
       True -> "<#t>"
       False -> "<#f>"
     FuncL x -> "<F>"
-    (x := y) -> case x := y of
-      (a := b) := c -> "(" ++ show a ++ " := " ++ show b ++ ")" ++ " := " ++ show c
-      a := (b := c) -> show a ++ " := " ++ "(" ++ show b ++ " := " ++ show c ++ ")"
-      _ -> show x ++ " := " ++ show y
+    (x := y) -> "(" ++ show x ++ " " ++ show y ++ ")"
     NilL -> "()"
 
 runParser :: Parser a -> String -> Maybe (a, String)
