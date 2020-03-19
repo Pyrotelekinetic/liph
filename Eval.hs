@@ -16,7 +16,7 @@ eval :: State -> State
 eval (t, e) = case e of
 --eval (t, e) = trace ("calling eval on\n    " ++ show e ++ "\nwith\n    " ++ show t ++ "\n\n") $ case e of
   FuncL f := x -> f (t, x)
-  AtomL a := x -> eval (t, getBind (t, AtomL a) := (sexp $ eval (t, x)))
+  AtomL a := x -> eval (t, getBind (t, AtomL a) := x)
   x := y -> (ty, x' := y')
     where
     (tx, x') = eval (t, x)
@@ -96,7 +96,10 @@ letL = \case
 
 lambdaL :: State -> State
 lambdaL = \case
-  (t, xs := e) -> (t, ErrorL "passed")
+  (t, AtomL x := d := e) -> (t, FuncL f) where
+    f (t', input) =
+      let value = sexp (eval (t', input)) in
+      eval ((x, value) : t, e)
   (t, _) -> (t, ErrorL "error")
 
 lets :: Table
