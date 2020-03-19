@@ -89,12 +89,14 @@ charP c = satisfy (== c)
 spaceP :: Parser String
 spaceP = many $ satisfy isSpace
 
+-- parses a string of allowed characters
 wordP :: Parser String
 wordP = do
   spaceP
   some (satisfy $ flip elem chars) where
     chars = ['a' .. 'z'] ++ ['A' .. 'Z'] ++ ['0' .. '9'] ++ ['+', '-', '*', '/', '=', '#']
 
+-- parses a string in which all characters meet a predicate
 wordP' :: (Char -> Bool) -> Parser String
 wordP' p = do
   some $ satisfy p

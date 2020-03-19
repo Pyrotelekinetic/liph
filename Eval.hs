@@ -4,8 +4,6 @@ module Eval where
 
 import Parser (Sexp (..), Table, State)
 
---import Debug.Trace
-
 table :: State -> Table
 table = fst
 
@@ -14,7 +12,6 @@ sexp = snd
 
 eval :: State -> State
 eval (t, e) = case e of
---eval (t, e) = trace ("calling eval on\n    " ++ show e ++ "\nwith\n    " ++ show t ++ "\n\n") $ case e of
   FuncL f := x -> f (t, x)
   AtomL a := x -> eval (t, getBind (t, AtomL a) := x)
   x := y -> (ty, x' := y')
@@ -36,7 +33,6 @@ getBind = \case
 -- sums a list of IntLs
 plusL :: State -> State
 plusL x = case eval x of
---plusL (t, e) = trace ("calling eval on:\n    " ++ show e ++ "\nwith:\n    " ++ show t) $ case eval (t, e) of
   (t', IntL n1 := IntL n2) -> (t', IntL (n1 + n2))
   (t', IntL n := NilL) -> (t', IntL n)
   (t', IntL n1 := n2) -> plusL (t', IntL n1 := (sexp $ plusL (t', n2)))
@@ -85,7 +81,6 @@ arithmetics =
 
 -- defines a new variable
 letL :: State -> State
---letL t = \case
 letL = \case
   (t, AtomL n := AtomL "=" := x := AtomL "in" := e) -> (t', e')
     where
