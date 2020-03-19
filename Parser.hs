@@ -40,6 +40,7 @@ data Sexp
   | FuncL (State -> State)
   | Sexp := Sexp
   | NilL
+  | ErrorL String
 
 infixr 5 :=
 
@@ -56,6 +57,7 @@ instance Show Sexp where
     FuncL x -> "<F>"
     (x := y) -> "(" ++ show x ++ " " ++ show y ++ ")"
     NilL -> "()"
+    ErrorL s -> s
 
 runParser :: Parser a -> String -> Maybe (a, String)
 runParser (MakeParser f) s = f s
