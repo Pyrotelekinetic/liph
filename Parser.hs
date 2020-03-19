@@ -37,7 +37,6 @@ data Sexp
   = AtomL String
   | IntL Integer
   | BoolL Bool
-  | VarL Sexp
   | FuncL (State -> State)
   | Sexp := Sexp
   | NilL
@@ -55,7 +54,6 @@ instance Show Sexp where
       True -> "<#t>"
       False -> "<#f>"
     FuncL x -> "<F>"
-    VarL v -> "V<" ++ show v ++ ">"
     (x := y) -> case x := y of
       (a := b) := c -> "(" ++ show a ++ " := " ++ show b ++ ")" ++ " := " ++ show c
       a := (b := c) -> show a ++ " := " ++ "(" ++ show b ++ " := " ++ show c ++ ")"
