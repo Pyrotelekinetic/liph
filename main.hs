@@ -2,8 +2,8 @@ import Parser (parse)
 import Eval (runEval)
 
 main = do
-  putStr "> "
+  putStr "$ "
   input <- getLine
   let code = "(" ++ input ++ ")"
-  print $ runEval . parse $ code
+  putStrLn $ "> " ++ show (runEval . parse $ code)
   main
