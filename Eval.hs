@@ -36,13 +36,13 @@ plusL x = case eval x of
   (t', IntL n1 := IntL n2) -> (t', IntL (n1 + n2))
   (t', IntL n := NilL) -> (t', IntL n)
   (t', IntL n1 := n2) -> plusL (t', IntL n1 := (sexp $ plusL (t', n2)))
-  (t', _) -> (t', ErrorL "Type Error: '+' takes Ints")
+  (t', z) -> (t', ErrorL $ "Type Error: '+' takes Ints,\n  " ++ show z ++ " do not have type Int")
 
 -- subtracts two IntLs
 minusL :: State -> State
 minusL x = case eval x of
   (t', IntL n1 := IntL n2 := NilL) -> (t', IntL (n1 - n2))
-  (t', _) -> (t', ErrorL "Type Error: '-' takes two Ints")
+  (t', z) -> (t', ErrorL $ "Type Error: '-' takes two Ints,\n  " ++ show z ++ " do not have type Int")
 
 -- multiplies two IntLs
 multiplyL :: State -> State
@@ -52,20 +52,20 @@ multiplyL x = case eval x of
   (t', IntL n1 := n2) -> multiplyL (t', IntL n1 := (sexp $ multiplyL (t', n2)))
     where
     n2' = sexp $ multiplyL (t', n2)
-  (t', _) -> (t', ErrorL "Type Error: '*' takes IntLs")
+  (t', z) -> (t', ErrorL $ "Type Error: '*' takes IntLs,\n  "++ show z ++ " do not have type Int")
 
 -- divides two IntLs
 divideL :: State -> State
 divideL x = case eval x of
   (t', IntL _ := IntL 0 := NilL) -> (t', ErrorL "Please do not divide by zero")
   (t', IntL n1 := IntL n2 := NilL) -> (t', IntL (div n1 n2))
-  (t', _) -> (t', ErrorL "Type Error: '/' takes two IntLs")
+  (t', z) -> (t', ErrorL $ "Type Error: '/' takes two IntLs,\n  " ++ show z ++ " do not have type Int")
 
 -- negates one IntL
 negativeL :: State -> State
 negativeL x = case eval x of
   (t', IntL n) -> (t', IntL (- n))
-  (t', _) -> (table x, ErrorL "Type Error: 'neg' takes one IntL")
+  (t', z) -> (table x, ErrorL $ "Type Error: 'neg' takes one IntL\n  " ++ show z ++ " does not have type Int")
 
 arithmetics :: Table
 arithmetics =
