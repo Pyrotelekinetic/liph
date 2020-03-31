@@ -91,10 +91,11 @@ letL = \case
 
 lambdaL :: State -> State
 lambdaL = \case
-  (t, AtomL x := d := e) -> (t, FuncL f) where
-    f (t', input) =
-      let value = sexp (eval (t', input)) in
-      eval ((x, value) : t, e)
+  (t, AtomL x := d) -> (t, FuncL f)
+    where
+    f (t', e) =
+      let v = sexp $ eval (t', e) in
+        eval ((x, v) : t, d)
   (t, _) -> (t, ErrorL "error")
 
 lets :: Table
