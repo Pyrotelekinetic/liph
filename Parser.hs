@@ -163,7 +163,7 @@ unwrap = \case
   Just x -> x
 
 sexpP :: Parser Sexp
-sexpP = consP <|> intP <|> atomP 
+sexpP = consP <|> intP <|> atomP
 
 parse :: String -> Sexp
 parse = unwrap . finishedP . runParser sexpP
