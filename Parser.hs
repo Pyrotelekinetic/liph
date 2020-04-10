@@ -159,7 +159,7 @@ finishedP = \case
 -- deals with potentioal parse failure
 unwrap :: Maybe Sexp -> Sexp
 unwrap = \case
-  Nothing -> AtomL "Parse Failure"
+  Nothing -> ErrorL "Parse Failure"
   Just x -> x
 
 sexpP :: Parser Sexp
