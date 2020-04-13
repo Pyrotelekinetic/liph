@@ -108,32 +108,32 @@ lets =
 -- Bool --
 
 andL :: State -> State
-andL (t, x) = case stripNilL $ snd $ eval (t, x) of
+andL (t, x) = case stripNilL $ sexp $ eval (t, x) of
   BoolL True := BoolL True -> (t, BoolL True)
   BoolL _ := BoolL _ -> (t, BoolL False)
   _ -> (t, ErrorL "Type Error: 'and' takes two Bools")
 
 orL :: State -> State
-orL (t, x) = case stripNilL $ snd $ eval (t, x) of
+orL (t, x) = case stripNilL $ sexp $ eval (t, x) of
   BoolL True := BoolL _ -> (t, BoolL True)
   BoolL _ := BoolL True -> (t, BoolL True)
   _ -> (t, ErrorL "Type Error: 'or' takes two Bools")
 
 xorL :: State -> State
-xorL (t, x) = case stripNilL $ snd $ eval (t, x) of
+xorL (t, x) = case stripNilL $ sexp $ eval (t, x) of
   BoolL True := BoolL False -> (t, BoolL True)
   BoolL False := BoolL True -> (t, BoolL True)
   BoolL _ := BoolL _ -> (t, BoolL False)
   _ -> (t, ErrorL "Type Error: 'xor' takes two Bools")
 
 notL :: State -> State
-notL (t, x) = case stripNilL $ snd $ eval (t, x) of
+notL (t, x) = case stripNilL $ sexp $ eval (t, x) of
   BoolL True -> (t, BoolL False)
   BoolL False -> (t, BoolL True)
   _ -> (t, ErrorL "Type Error: 'not' takes one Bool")
 
 ifL :: State -> State
-ifL (t, p := e) = case stripNilL $ snd $ eval (t, p) of
+ifL (t, p := e) = case stripNilL $ sexp $ eval (t, p) of
   BoolL True -> eval (t, e)
   BoolL False -> (t, NilL)
   _ -> (t, ErrorL "Type Error: 'if' takes one Bool and one expression")
