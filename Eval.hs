@@ -2,7 +2,7 @@
 
 module Eval where
 
-import Parser -- (Sexp (..), Table, State)
+import Parser (Sexp (..), Table, State)
 import Debug.Trace
 
 table :: State -> Table
@@ -17,7 +17,6 @@ map' f (x := y) = (f x) := (map' f y)
 map' f x = f x
 
 eval :: State -> State
---eval (t, e) = trace ("calling eval on: " ++ show (t, e) ++ "\n") $ case e of
 eval (t, e) = case e of
   ErrorL err -> ([], NilL)
   FuncL f := x -> f (t, x)
@@ -26,9 +25,6 @@ eval (t, e) = case e of
   x := ys -> (t, sexp (eval (t, x' := ys)))
     where
     (tx, x') = eval (t, x)
-    -- ys' = map' (\ y -> sexp (eval (tx, y))) ys
-    -- (tx, x') = eval (t, x)
-    -- (ty, y') = eval (tx, y)
   x -> (t, x)
 
 getBind :: State -> Sexp
@@ -38,13 +34,13 @@ getBind = \case
     | n == s -> f
     | otherwise -> getBind (ts, AtomL s)
 
--- Arithmetic --
+evalList (t, xs) = (t, map' (\x -> sexp $ eval (t, x)) xs)
 
-evalList (t, xs) = (t, map' (\ x -> trace ("evalList entry " ++ show (t, x))$ sexp $ eval (t, x)) xs)
+-- Arithmetic --
 
 -- sums a list of IntLs
 plusL :: State -> State
-plusL x = trace ("x = " ++ show x) $ case trace "entering evalList" (evalList x) of
+plusL x = trace ("x = " ++ show x) $ case (evalList x) of
   (t', IntL n1 := IntL n2) -> (t', IntL (n1 + n2))
   (t', IntL n := NilL) -> (t', IntL n)
   (t', IntL n1 := n2) -> plusL (t', IntL n1 := (sexp $ plusL (t', n2)))
@@ -101,13 +97,9 @@ letL = \case
   (t, AtomL n := AtomL "=" := x := e) -> ((n, x) : t, NilL)
   (t, _) -> (t, ErrorL "let Error")
 
-prettify :: State -> Sexp
-prettify = stripNilL . sexp . eval
-
--- for some reason eval is called on ([(x, ()), ..], (A"+" (I<1> (A"x" ()))))
+-- defines a single arg lambda expression
 lambdaL :: State -> State
-lambdaL x = trace ("calling lambdaL on\n  " ++ show x ++ "\n\n\n\n") $ case x of
---lambdaL = \case
+lambdaL = \case
   (t, AtomL x := d := NilL) -> eval (t, FuncL f)
     where
       f (t', e) =

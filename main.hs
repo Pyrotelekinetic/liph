@@ -4,8 +4,7 @@ import Eval (runEval)
 main = do
 --  putStr "$ "
   input <- getLine
-  let code = "(" ++ input ++ ")"
-  putStrLn $ "$ " ++ code
-  putStrLn $ "parsed as: " ++ show (parse code)
-  putStrLn $ "> " ++ show (runEval . parse $ code)
+  putStrLn $ "$ " ++ input
+  putStrLn $ "parsed as: " ++ show (parse input)
+  putStrLn $ "> " ++ show (runEval . parse $ input)
   main
