@@ -11,6 +11,11 @@ table = fst
 sexp :: State -> Sexp
 sexp = snd
 
+map' :: (Sexp -> Sexp) -> Sexp -> Sexp
+map' f x = f x
+map' f (x := y) = (f x) := (map' f y)
+
+
 eval :: State -> State
 --eval (t, e) = trace ("calling eval on: " ++ show (t, e) ++ "\n") $ case e of
 eval (t, e) = case e of
