@@ -3,6 +3,7 @@
 module Eval where
 
 import Parser (Sexp (..), Table, State)
+import Debug.Trace
 
 table :: State -> Table
 table = fst
@@ -11,7 +12,9 @@ sexp :: State -> Sexp
 sexp = snd
 
 eval :: State -> State
+--eval (t, e) = trace ("calling eval on: " ++ show (t, e) ++ "\n") $ case e of
 eval (t, e) = case e of
+  ErrorL err -> ([], NilL)
   FuncL f := x -> f (t, x)
   AtomL a := x -> eval (t, getBind (t, AtomL a) := x)
   x := y -> (ty, x' := y')
@@ -89,14 +92,19 @@ letL = \case
   (t, AtomL n := AtomL "=" := x := e) -> ((n, x) : t, NilL)
   (t, _) -> (t, ErrorL "let Error")
 
+prettify :: State -> Sexp
+prettify = stripNilL . sexp . eval
+
+-- for some reason eval is called on ([(x, ()), ..], (A"+" (I<1> (A"x" ()))))
 lambdaL :: State -> State
-lambdaL = \case
-  (t, AtomL x := d) -> (t, FuncL f)
+lambdaL x = trace ("calling lambdaL on\n  " ++ show x ++ "\n\n\n\n") $ case x of
+--lambdaL = \case
+  (t, AtomL x := d := e) -> trace ("evaling\n  " ++ show (t, FuncL f := e)) eval (t, FuncL f := e)
     where
-    f (t', e) =
-      let v = sexp $ eval (t', e) in
-        eval ((x, v) : t, d)
-  (t, _) -> (t, ErrorL "error")
+      f (t', e) =
+        let v = sexp $ eval (t', e) in
+          eval ((x, v) : t, d)
+  (t, _) -> (t, ErrorL "Failure")
 
 lets :: Table
 lets =
