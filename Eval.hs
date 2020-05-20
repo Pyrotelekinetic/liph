@@ -97,17 +97,24 @@ letL = \case
   (t, AtomL n := AtomL "=" := x := e) -> ((n, x) : t, NilL)
   (t, _) -> (t, ErrorL "let Error")
 
--- defines a single arg lambda expression
+-- defines a lambda expression
 lambdaL :: State -> State
 lambdaL = \case
-  (t, AtomL x := d := NilL) -> eval (t, FuncL f)
+  (t, xs := ds := NilL) -> eval (t, FuncL f)
     where
-      f (t', e) =
-        case e of
-          e := NilL -> let v = sexp $ eval (t', e) in eval ((x, v) : t, d)
-          _ -> (t', ErrorL "Lambdas only take one argument")
+      f (t', es) = let vs = sexp $ evalList (t', es) in
+        case extend xs vs t of
+          Nothing -> ([], ErrorL "something bad")
+          Just t -> eval (t, ds)
+          where
+            extend :: Sexp -> Sexp -> Table -> Maybe Table
+            extend NilL NilL t = Just t
+            extend NilL vs _ = Nothing
+            extend xs NilL _ = Nothing
+            extend (AtomL x := xs) (v := vs) t = ((x, v) :) <$> extend xs vs t
   (t, _) -> (t, ErrorL "Failure")
 
+--((lambda (x y) (+ 1 x y)) 4)
 lets :: Table
 lets =
   [ ("let", FuncL letL)
