@@ -34,6 +34,7 @@ getBind = \case
     | n == s -> f
     | otherwise -> getBind (ts, AtomL s)
 
+evalList :: State -> State
 evalList (t, xs) = (t, map' (\x -> sexp $ eval (t, x)) xs)
 
 -- Arithmetic --
@@ -114,7 +115,6 @@ lambdaL = \case
             extend (AtomL x := xs) (v := vs) t = ((x, v) :) <$> extend xs vs t
   (t, _) -> (t, ErrorL "Failure")
 
---((lambda (x y) (+ 1 x y)) 4)
 lets :: Table
 lets =
   [ ("let", FuncL letL)
