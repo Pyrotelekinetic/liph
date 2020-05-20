@@ -96,7 +96,7 @@ letL = \case
     t' = (n, x) : t
     e' = sexp $ eval (t', e)
   (t, AtomL n := AtomL "=" := x := e) -> ((n, x) : t, NilL)
-  (t, _) -> (t, ErrorL "let Error")
+  (t, _) -> (t, ErrorL "Syntax Error: Invalid let expression")
 
 -- defines a lambda expression
 lambdaL :: State -> State
@@ -105,15 +105,15 @@ lambdaL = \case
     where
       f (t', es) = let vs = sexp $ evalList (t', es) in
         case extend xs vs t of
-          Nothing -> ([], ErrorL "something bad")
           Just t -> eval (t, ds)
+          Nothing -> ([], ErrorL "Error: incorrect number of args in lambda expression")
           where
             extend :: Sexp -> Sexp -> Table -> Maybe Table
             extend NilL NilL t = Just t
             extend NilL vs _ = Nothing
             extend xs NilL _ = Nothing
             extend (AtomL x := xs) (v := vs) t = ((x, v) :) <$> extend xs vs t
-  (t, _) -> (t, ErrorL "Failure")
+  (t, _) -> (t, ErrorL "Syntax Error: invalid lambda expression")
 
 lets :: Table
 lets =
