@@ -1,5 +1,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 module Parser where
 
@@ -58,6 +60,10 @@ instance Show Sexp where
     (x := y) -> "(" ++ show x ++ " " ++ show y ++ ")"
     NilL -> "()"
     ErrorL s -> s
+
+instance Eq (State -> State) where _ == _ = False
+
+deriving instance Eq Sexp
 
 runParser :: Parser a -> String -> Maybe (a, String)
 runParser (MakeParser f) s = f s

@@ -20,12 +20,26 @@ eval :: State -> State
 eval (t, e) = case e of
   ErrorL err -> ([], NilL)
   FuncL f := x -> f (t, x)
+--  AtomL "defun" := y -> case y of
+--    (AtomL fn := xs := d := NilL) ->
+--    _ -> ([], ErrorL "Syntax Error: invalid function definition")
   AtomL a -> eval (t, getBind (t, AtomL a))
-  AtomL a := x -> eval (t, getBind (t, AtomL a) := x)
+--  AtomL a := x -> eval (t, getBind (t, AtomL a) := x)
   x := ys -> (t, sexp (eval (t, x' := ys)))
     where
     (tx, x') = eval (t, x)
   x -> (t, x)
+
+{-
+-- (defun f (x1 x2) (+ x1 x2))
+defunL (AtomL "f" := (x1 := x2 := NilL) := d := NilL)
+defunL (f := xs := d := NilL)
+-}
+
+--initState :: State -> State
+--initState (t, e) = case e of
+--  AtomL "defun" := AtomL fn := xs := d := NilL -> ((fn, FuncL f) : t, e)
+--  x := ys -> -- recurse
 
 getBind :: State -> Sexp
 getBind = \case
@@ -41,7 +55,7 @@ evalList (t, xs) = (t, map' (\x -> sexp $ eval (t, x)) xs)
 
 -- sums a list of IntLs
 plusL :: State -> State
-plusL x = trace ("x = " ++ show x) $ case (evalList x) of
+plusL x = case (evalList x) of
   (t', IntL n1 := IntL n2) -> (t', IntL (n1 + n2))
   (t', IntL n := NilL) -> (t', IntL n)
   (t', IntL n1 := n2) -> plusL (t', IntL n1 := (sexp $ plusL (t', n2)))
@@ -98,27 +112,47 @@ letL = \case
   (t, AtomL n := AtomL "=" := x := e) -> ((n, x) : t, NilL)
   (t, _) -> (t, ErrorL "Syntax Error: Invalid let expression")
 
+extend :: Sexp -> Sexp -> Table -> Maybe Table
+extend NilL NilL t = Just t
+extend NilL vs _ = Nothing
+extend xs NilL _ = Nothing
+extend (AtomL x := xs) (v := vs) t = ((x, v) :) <$> extend xs vs t
+
 -- defines a lambda expression
 lambdaL :: State -> State
 lambdaL = \case
-  (t, xs := ds := NilL) -> eval (t, FuncL f)
+  (t, xs := ds := NilL) -> eval (t, FuncL fn)
     where
-      f (t', es) = let vs = sexp $ evalList (t', es) in
+      fn (t', es) = let vs = sexp $ evalList (t', es) in
         case extend xs vs t of
           Just t -> eval (t, ds)
           Nothing -> ([], ErrorL "Error: incorrect number of args in lambda expression")
-          where
-            extend :: Sexp -> Sexp -> Table -> Maybe Table
-            extend NilL NilL t = Just t
-            extend NilL vs _ = Nothing
-            extend xs NilL _ = Nothing
-            extend (AtomL x := xs) (v := vs) t = ((x, v) :) <$> extend xs vs t
   (t, _) -> (t, ErrorL "Syntax Error: invalid lambda expression")
+
+fixL :: State -> State
+fixL = \case
+  (t, AtomL f := xs := d := NilL) -> {-trace "got here"-} eval (t, FuncL fn)
+    where
+    fn (t', es) = let vs = sexp $ evalList (t', es) in
+      case extend xs vs ((f, FuncL fn) : t) of
+        Just t -> trace "got here" eval (t, d)
+        Nothing -> ([], ErrorL "you broke it")
+  _ -> ([], ErrorL "Error: invalid fix expression")
+
+{-
+  (fix fib (n)
+    (if (= n 0) 0
+    (if (= n 1) 1
+    (+ (fib (- n 1)) (fib (- n 2))))))
+FucnL fixL (AtomL "fib" := AtomL "n" := NilL := AtomL "if" := AtomL "=" := AtomL "n" := IntL 0 := NilL := IntL 0 ..
+FuncL fixL (AtomL f := xs := d)
+-}
 
 lets :: Table
 lets =
   [ ("let", FuncL letL)
   , ("lambda", FuncL lambdaL)
+  , ("fix", FuncL fixL)
   ]
 
 
