@@ -131,12 +131,12 @@ lambdaL = \case
 
 fixL :: State -> State
 fixL = \case
-  (t, AtomL f := xs := d := NilL) -> {-trace "got here"-} eval (t, FuncL fn)
+  (t, AtomL f := xs := d := NilL) -> eval (t, FuncL fn)
     where
     fn (t', es) = let vs = sexp $ evalList (t', es) in
       case extend xs vs ((f, FuncL fn) : t) of
-        Just t -> trace "got here" eval (t, d)
-        Nothing -> ([], ErrorL "you broke it")
+        Just t -> eval (t, d)
+        Nothing -> ([], ErrorL "Error: incorrect number of args in fix expression")
   _ -> ([], ErrorL "Error: invalid fix expression")
 
 lets :: Table
