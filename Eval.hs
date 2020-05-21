@@ -139,15 +139,6 @@ fixL = \case
         Nothing -> ([], ErrorL "you broke it")
   _ -> ([], ErrorL "Error: invalid fix expression")
 
-{-
-  (fix fib (n)
-    (if (= n 0) 0
-    (if (= n 1) 1
-    (+ (fib (- n 1)) (fib (- n 2))))))
-FucnL fixL (AtomL "fib" := AtomL "n" := NilL := AtomL "if" := AtomL "=" := AtomL "n" := IntL 0 := NilL := IntL 0 ..
-FuncL fixL (AtomL f := xs := d)
--}
-
 lets :: Table
 lets =
   [ ("let", FuncL letL)
@@ -157,6 +148,13 @@ lets =
 
 
 -- Bool --
+
+equalsL :: State -> State
+equalsL (t, x) = case x of
+  a := NilL -> ([], ErrorL "Type Error: '=' takes two arguments")
+  a := b -> case a == b of
+    True -> (t, BoolL True)
+    False -> (t, BoolL False)
 
 andL :: State -> State
 andL (t, x) = case stripNilL $ sexp $ eval (t, x) of
@@ -195,6 +193,7 @@ bools =
   , ("#T", BoolL True)
   , ("#f", BoolL False)
   , ("#F", BoolL False)
+  , ("=", FuncL equalsL)
   , ("and", FuncL andL)
   , ("or", FuncL orL)
   , ("xor", FuncL xorL)
