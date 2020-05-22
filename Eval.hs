@@ -51,6 +51,7 @@ getBind = \case
 evalList :: State -> State
 evalList (t, xs) = (t, map' (\x -> sexp $ eval (t, x)) xs)
 
+
 -- Arithmetic --
 
 -- sums a list of IntLs
@@ -102,14 +103,13 @@ arithmetics =
 
 -- Let --
 
--- defines a new variable
+-- defines a let expression
 letL :: State -> State
 letL = \case
-  (t, AtomL n := AtomL "=" := x := AtomL "in" := e) -> (t', e')
+  (t, AtomL n :=  x := e := NilL) -> (t', e')
     where
     t' = (n, x) : t
     e' = sexp $ eval (t', e)
-  (t, AtomL n := AtomL "=" := x := e) -> ((n, x) : t, NilL)
   (t, _) -> (t, ErrorL "Syntax Error: Invalid let expression")
 
 extend :: Sexp -> Sexp -> Table -> Maybe Table
@@ -129,6 +129,7 @@ lambdaL = \case
           Nothing -> ([], ErrorL "Error: incorrect number of args in lambda expression")
   (t, _) -> (t, ErrorL "Syntax Error: invalid lambda expression")
 
+-- defines a recursive lambda expression
 fixL :: State -> State
 fixL = \case
   (t, AtomL f := xs := d := NilL) -> eval (t, FuncL fn)
