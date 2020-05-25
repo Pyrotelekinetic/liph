@@ -49,7 +49,7 @@ infixr 5 :=
 type Table = [(String, Sexp)]
 type State = (Table, Sexp)
 
-instance Show Sexp where
+{-instance Show Sexp where
   show = \case
     AtomL x -> "A\"" ++ x ++ "\""
     IntL x -> "I<" ++ show x ++ ">"
@@ -59,7 +59,17 @@ instance Show Sexp where
     FuncL x -> "<F>"
     (x := y) -> "(" ++ show x ++ " " ++ show y ++ ")"
     NilL -> "()"
-    ErrorL s -> s
+    ErrorL s -> s-}
+
+instance Show Sexp where
+  show = \case
+    AtomL x -> "AtomL " ++ show x
+    IntL x -> "IntL " ++ show x
+    BoolL x -> "BoolL " ++ show x
+    FuncL _ -> "<F>"
+    (x := y) -> "(" ++ show x ++ " := " ++ show y ++ ")"
+    NilL -> "NilL"
+    ErrorL s -> "ErrorL " ++ s
 
 instance Eq (State -> State) where _ == _ = False
 

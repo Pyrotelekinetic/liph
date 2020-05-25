@@ -2,7 +2,7 @@
 
 module Eval where
 
-import Parser (Sexp (..), Table, State)
+import Parser --(Sexp (..), Table, State)
 import Debug.Trace
 
 table :: State -> Table
@@ -132,13 +132,24 @@ lambdaL = \case
 -- defines a recursive lambda expression
 fixL :: State -> State
 fixL = \case
-  (t, AtomL f := xs := d := NilL) -> eval (t, FuncL fn)
+  (t, AtomL f := xs := d := NilL) -> trace "got here" eval (t, FuncL fn)
     where
     fn (t', es) = let vs = sexp $ evalList (t', es) in
       case extend xs vs ((f, FuncL fn) : t) of
         Just t -> eval (t, d)
         Nothing -> ([], ErrorL "Error: incorrect number of args in fix expression")
   _ -> ([], ErrorL "Error: invalid fix expression")
+
+{-
+((fix fib (n) (if (= n 0) 0 (if (= n 1) 1 (+ (fib (- n 1)) (fib (- n 2)))))) 2)
+
+AtomL f := xs := d := NilL
+AtomL "fib" := ((AtomL "n" := NilL) := ((AtomL "if" := ((AtomL "=" := (AtomL "n" := (IntL 0 := NilL))) := (IntL 0 := ((AtomL "if" := ((AtomL "=" := (AtomL "n" := (IntL 1 := NilL))) := (IntL 1 := ((AtomL "+" := ((AtomL "fib" := ((AtomL "-" := (AtomL "n" := (IntL 1 := NilL))) := NilL)) := ((AtomL "fib" := ((AtomL "-" := (AtomL "n" := (IntL 2 := NilL))) := NilL)) := NilL))) := NilL)))) := NilL)))) := NilL))
+
+
+((AtomL "fix" := (AtomL "fib" := ((AtomL "n" := NilL) := ((AtomL "if" := ((AtomL "=" := (AtomL "n" := (IntL 0 := NilL))) := (IntL 0 := ((AtomL "if" := ((AtomL "=" := (AtomL "n" := (IntL 1 := NilL))) := (IntL 1 := ((AtomL "+" := ((AtomL "fib" := ((AtomL "-" := (AtomL "n" := (IntL 1 := NilL))) := NilL)) := ((AtomL "fib" := ((AtomL "-" := (AtomL "n" := (IntL 2 := NilL))) := NilL)) := NilL))) := NilL)))) := NilL)))) := NilL)))) := (IntL 2 := NilL))
+
+-}
 
 lets :: Table
 lets =
@@ -186,7 +197,7 @@ ifL :: State -> State
 ifL (t, p := d := e) = case stripNilL $ sexp $ eval (t, p) of
   BoolL True -> eval (t, d)
   BoolL False -> eval (t, e)
-  _ -> (t, ErrorL "Type Error: 'if' takes one Bool and one expression")
+  _ -> (t, ErrorL "Type Error: 'if' takes one Bool and two expressions")
 
 bools :: Table
 bools =
