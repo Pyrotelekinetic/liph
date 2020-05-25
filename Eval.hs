@@ -183,9 +183,9 @@ notL (t, x) = case stripNilL $ sexp $ eval (t, x) of
   _ -> (t, ErrorL "Type Error: 'not' takes one Bool")
 
 ifL :: State -> State
-ifL (t, p := e) = case stripNilL $ sexp $ eval (t, p) of
-  BoolL True -> eval (t, e)
-  BoolL False -> (t, NilL)
+ifL (t, p := d := e) = case stripNilL $ sexp $ eval (t, p) of
+  BoolL True -> eval (t, d)
+  BoolL False -> eval (t, e)
   _ -> (t, ErrorL "Type Error: 'if' takes one Bool and one expression")
 
 bools :: Table
