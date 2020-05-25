@@ -163,10 +163,11 @@ lets =
 
 equalsL :: State -> State
 equalsL (t, x) = case x of
-  a := NilL -> ([], ErrorL "Type Error: '=' takes two arguments")
-  a := b -> case a == b of
-    True -> (t, BoolL True)
-    False -> (t, BoolL False)
+  _ := NilL -> (t, ErrorL "Type Error: '=' takes two arguments")
+  a := b := NilL -> (t, BoolL $ a' == b')
+    where
+    a' = sexp $ eval (t, a)
+    b' = sexp $ eval (t, b)
 
 andL :: State -> State
 andL (t, x) = case stripNilL $ sexp $ eval (t, x) of
