@@ -11,7 +11,7 @@ import Control.Monad
 import Control.Monad.Reader
 
 
-data Parser a = MakeParser (String -> Maybe (a, String))
+newtype Parser a = MakeParser (String -> Maybe (a, String))
   deriving Functor
 
 instance Monad Parser where
@@ -39,7 +39,7 @@ data Sexp
   = AtomL String
   | IntL Integer
   | BoolL Bool
-  | FuncL (State -> State)
+  | FuncL (State -> Either Error State)
   | Sexp := Sexp
   | NilL
   | ErrorL String
@@ -48,6 +48,8 @@ infixr 5 :=
 
 type Table = [(String, Sexp)]
 type State = (Table, Sexp)
+
+type Error = String
 
 {-instance Show Sexp where
   show = \case
@@ -71,12 +73,12 @@ instance Show Sexp where
     NilL -> "NilL"
     ErrorL s -> "ErrorL " ++ s
 
-instance Eq (State -> State) where _ == _ = False
+instance Eq (State -> Either Error State) where _ == _ = False
 
 deriving instance Eq Sexp
 
 runParser :: Parser a -> String -> Maybe (a, String)
-runParser (MakeParser f) s = f s
+runParser (MakeParser f) = f
 
 
 
@@ -160,7 +162,7 @@ parensP p = do
   charP ')'
   return result
 
--- parses a (Sexp := Sexp)
+-- parses a cons expression
 consP :: Parser Sexp
 consP = do
  cells <- parensP $ many sexpP
@@ -172,14 +174,15 @@ finishedP = \case
   Just (a, "") -> Just a
   _ -> Nothing
 
--- deals with potentioal parse failure
-unwrap :: Maybe Sexp -> Sexp
-unwrap = \case
-  Nothing -> ErrorL "Parse Failure"
-  Just x -> x
-
+-- parses an s expression
 sexpP :: Parser Sexp
 sexpP = consP <|> intP <|> atomP
 
-parse :: String -> Sexp
+-- deals with potential parse failure
+unwrap :: Maybe Sexp -> Either Error Sexp
+unwrap = \case
+  Nothing -> Left "Parse Failure"
+  Just x -> Right x
+
+parse :: String -> Either Error Sexp
 parse = unwrap . finishedP . runParser sexpP

@@ -5,6 +5,9 @@ main = do
 --  putStr "$ "
   input <- getLine
   putStrLn $ "$ " ++ input
-  putStrLn $ "parsed as: " ++ show (parse input)
-  putStrLn $ "> " ++ show (runEval . parse $ input)
+  case parse input of
+    Left e -> putStrLn e
+    Right input' -> do
+      putStrLn $ "parsed as: " ++ show input'
+      putStrLn $ "> " ++ show (runEval input')
   main

@@ -2,89 +2,88 @@
 
 module Eval where
 
-import Parser (Sexp (..), Table, State)
+import Parser (Sexp (..), Table, State, Error)
 
-table :: State -> Table
-table = fst
 
-sexp :: State -> Sexp
-sexp = snd
+table :: Either Error State -> Either Error Table
+table = fmap fst
 
-map' :: (Sexp -> Sexp) -> Sexp -> Sexp
-map' f NilL = NilL
-map' f (x := y) = (f x) := (map' f y)
+sexp :: Either Error State -> Either Error Sexp
+sexp = fmap snd
+
+map' :: Monad m => (Sexp -> m Sexp) -> Sexp -> m Sexp
+map' f (x := y) = (:=) <$> f x <*> map' f y
 map' f x = f x
 
-eval :: State -> State
+eval :: State -> Either Error State
 eval (t, e) = case e of
-  ErrorL err -> ([], NilL)
   FuncL f := x -> f (t, x)
-  AtomL a -> eval (t, getBind (t, AtomL a))
-  x := ys -> (t, sexp (eval (t, x' := ys)))
-    where
-    (tx, x') = eval (t, x)
-  x -> (t, x)
+  AtomL a -> case getBind (t, AtomL a) of
+    Left e -> Left e
+    Right x -> eval (t, x)
+  x := ys -> do
+    (_, x') <- eval (t, x)
+    eval (t, x' := ys)
+  x -> Right (t, x)
 
-{-
--- (defun f (x1 x2) (+ x1 x2))
-defunL (AtomL "f" := (x1 := x2 := NilL) := d := NilL)
-defunL (f := xs := d := NilL)
--}
-
---initState :: State -> State
---initState (t, e) = case e of
---  AtomL "defun" := AtomL fn := xs := d := NilL -> ((fn, FuncL f) : t, e)
---  x := ys -> -- recurse
-
-getBind :: State -> Sexp
+getBind :: State -> Either Error Sexp
 getBind = \case
-  ([], AtomL s) -> ErrorL "Error: exhasted bindings"
+  ([], _) -> Left "Error: exhasted bindings"
   ((n, f) : ts, AtomL s)
-    | n == s -> f
+    | n == s -> Right f
     | otherwise -> getBind (ts, AtomL s)
 
-evalList :: State -> State
-evalList (t, xs) = (t, map' (\x -> sexp $ eval (t, x)) xs)
+evalList :: State -> Either Error State
+evalList (t, xs) = do
+  xs' <- map' (\x -> sexp $ eval (t, x)) xs
+  return (t, xs')
 
 
 -- Arithmetic --
 
 -- sums a list of IntLs
-plusL :: State -> State
-plusL x = case (evalList x) of
-  (t', IntL n1 := IntL n2) -> (t', IntL (n1 + n2))
-  (t', IntL n := NilL) -> (t', IntL n)
-  (t', IntL n1 := n2) -> plusL (t', IntL n1 := (sexp $ plusL (t', n2)))
-  (t', z) -> (t', ErrorL $ "Type Error: '+' takes Ints,\n  " ++ show z ++ " do not have type Int")
+plusL :: State -> Either Error State
+plusL x = case evalList x of
+  Left e -> Left e
+  Right (t, IntL n1 := IntL n2) -> Right (t, IntL (n1 + n2))
+  Right (t, IntL n := NilL) -> Right (t, IntL n)
+  Right (t, IntL n := ns) -> case plusL (t, ns) of
+    Left e -> Left e
+    Right (_, n1) -> plusL (t, IntL n := n1)
+  Right (_, z) -> Left $ "Type Error: '+' takes Ints,\n  " ++ show z ++ " do not have type Int"
 
 -- subtracts two IntLs
-minusL :: State -> State
+minusL :: State -> Either Error State
 minusL x = case evalList x of
-  (t', IntL n1 := IntL n2 := NilL) -> (t', IntL (n1 - n2))
-  (t', z) -> (t', ErrorL $ "Type Error: '-' takes two Ints,\n  " ++ show z ++ " do not have type Int")
+  Left e -> Left e
+  Right (t, IntL n1 := IntL n2 := NilL) -> Right (t, IntL (n1 - n2))
+  Right (_, z) -> Left $ "Type Error: '-' takes two Ints,\n  " ++ show z ++ " do not have type Int"
 
 -- multiplies two IntLs
-multiplyL :: State -> State
+multiplyL :: State -> Either Error State
 multiplyL x = case evalList x of
-  (t', IntL n1 := IntL n2) -> (t', IntL (n1 * n2))
-  (t', IntL n := NilL) -> (t', IntL n)
-  (t', IntL n1 := n2) -> multiplyL (t', IntL n1 := (sexp $ multiplyL (t', n2)))
-    where
-    n2' = sexp $ multiplyL (t', n2)
-  (t', z) -> (t', ErrorL $ "Type Error: '*' takes IntLs,\n  "++ show z ++ " do not have type Int")
+  Left e -> Left e
+  Right (t, IntL n1 := IntL n2) -> Right (t, IntL (n1 * n2))
+  Right (t, IntL n := NilL) -> Right (t, IntL n)
+  Right (t, IntL n1 := n2) -> case multiplyL (t, n2) of
+    Left e -> Left e
+    Right (_, n') -> multiplyL (t, IntL n1 := n')
+  Right (_, z) -> Left $ "Type Error: '*' takes IntLs,\n  "++ show z ++ " do not have type Int"
 
 -- divides two IntLs
-divideL :: State -> State
+divideL :: State -> Either Error State
 divideL x = case evalList x of
-  (t', IntL _ := IntL 0 := NilL) -> (t', ErrorL "Please do not divide by zero")
-  (t', IntL n1 := IntL n2 := NilL) -> (t', IntL (div n1 n2))
-  (t', z) -> (t', ErrorL $ "Type Error: '/' takes two IntLs,\n  " ++ show z ++ " do not have type Int")
+  Left e -> Left e
+  Right (_, IntL _ := IntL 0 := NilL) -> Left "Please do not divide by zero"
+  Right (t', IntL n1 := IntL n2 := NilL) -> Right (t', IntL (div n1 n2))
+  Right (_, z) -> Left $ "Type Error: '/' takes two IntLs,\n  " ++ show z ++ " do not have type Int"
 
 -- negates one IntL
-negativeL :: State -> State
+negativeL :: State -> Either Error State
 negativeL x = case eval x of
-  (t', IntL n) -> (t', IntL (- n))
-  (t', z) -> (table x, ErrorL $ "Type Error: 'neg' takes one IntL\n  " ++ show z ++ " does not have type Int")
+  Left e -> Left e
+  Right (t', IntL n) -> Right (t', IntL (- n))
+  Right (_, z) -> Left $ "Type Error: 'neg' takes one IntL\n  " ++ show z ++ " does not have type Int"
 
 arithmetics :: Table
 arithmetics =
@@ -99,13 +98,13 @@ arithmetics =
 -- Let --
 
 -- defines a let expression
-letL :: State -> State
+letL :: State -> Either Error State
 letL = \case
-  (t, AtomL n :=  x := e := NilL) -> (t', e')
+  (t, AtomL n :=  x := e := NilL) -> Right (t', e')
     where
     t' = (n, x) : t
-    e' = sexp $ eval (t', e)
-  (t, _) -> (t, ErrorL "Syntax Error: Invalid let expression")
+    Right (_, e') = eval (t', e)
+  _ -> Left "Syntax Error: Invalid let expression"
 
 extend :: Sexp -> Sexp -> Table -> Maybe Table
 extend NilL NilL t = Just t
@@ -114,26 +113,26 @@ extend xs NilL _ = Nothing
 extend (AtomL x := xs) (v := vs) t = ((x, v) :) <$> extend xs vs t
 
 -- defines a lambda expression
-lambdaL :: State -> State
+lambdaL :: State -> Either Error State
 lambdaL = \case
   (t, xs := ds := NilL) -> eval (t, FuncL fn)
     where
-      fn (t', es) = let vs = sexp $ evalList (t', es) in
+      fn (t', es) = let Right (_, vs) = evalList (t', es) in
         case extend xs vs t of
           Just t -> eval (t, ds)
-          Nothing -> ([], ErrorL "Error: incorrect number of args in lambda expression")
-  (t, _) -> (t, ErrorL "Syntax Error: invalid lambda expression")
+          Nothing -> Left "Error: incorrect number of args in lambda expression"
+  (t, _) -> Left "Syntax Error: invalid lambda expression"
 
 -- defines a recursive lambda expression
-fixL :: State -> State
+fixL :: State -> Either Error State
 fixL = \case
   (t, AtomL f := xs := d := NilL) -> eval (t, FuncL fn)
     where
-    fn (t', es) = let vs = sexp $ evalList (t', es) in
+    fn (t', es) = let Right (_, vs) = evalList (t', es) in
       case extend xs vs ((f, FuncL fn) : t) of
         Just t -> eval (t, d)
-        Nothing -> ([], ErrorL "Error: incorrect number of args in fix expression")
-  _ -> ([], ErrorL "Error: invalid fix expression")
+        Nothing -> Left "Error: incorrect number of args in fix expression"
+  _ -> Left "Error: invalid fix expression"
 
 lets :: Table
 lets =
@@ -145,44 +144,55 @@ lets =
 
 -- Bool --
 
-equalsL :: State -> State
+equalsL :: State -> Either Error State
 equalsL (t, x) = case x of
-  _ := NilL -> (t, ErrorL "Type Error: '=' takes two arguments")
-  a := b := NilL -> (t, BoolL $ a' == b')
+  _ := NilL -> Left "Type Error: '=' takes two arguments"
+  a := b := NilL -> Right (t, BoolL $ a' == b')
     where
     a' = sexp $ eval (t, a)
     b' = sexp $ eval (t, b)
 
-andL :: State -> State
-andL (t, x) = case stripNilL $ sexp $ eval (t, x) of
-  BoolL True := BoolL True -> (t, BoolL True)
-  BoolL _ := BoolL _ -> (t, BoolL False)
-  _ -> (t, ErrorL "Type Error: 'and' takes two Bools")
+andL :: State -> Either Error State
+andL (t, x) = do
+  (_, x') <- eval (t, x)
+  case stripNilL x' of
+    BoolL True := BoolL True -> Right (t, BoolL True)
+    BoolL _ := BoolL _ -> Right (t, BoolL False)
+    _ -> Left "Type Error: 'and' takes two Bools"
 
-orL :: State -> State
-orL (t, x) = case stripNilL $ sexp $ eval (t, x) of
-  BoolL True := BoolL _ -> (t, BoolL True)
-  BoolL _ := BoolL True -> (t, BoolL True)
-  _ -> (t, ErrorL "Type Error: 'or' takes two Bools")
+orL :: State -> Either Error State
+orL (t, x) = do
+  (_, x') <- eval (t, x)
+  case stripNilL x' of
+    BoolL True := BoolL _ -> Right (t, BoolL True)
+    BoolL _ := BoolL True -> Right (t, BoolL True)
+    BoolL False := BoolL False -> Right (t, BoolL False)
+    _ -> Left "Type Error: 'or' takes two Bools"
 
-xorL :: State -> State
-xorL (t, x) = case stripNilL $ sexp $ eval (t, x) of
-  BoolL True := BoolL False -> (t, BoolL True)
-  BoolL False := BoolL True -> (t, BoolL True)
-  BoolL _ := BoolL _ -> (t, BoolL False)
-  _ -> (t, ErrorL "Type Error: 'xor' takes two Bools")
+xorL :: State -> Either Error State
+xorL (t, x) = do
+  (_, x') <- eval (t, x)
+  case stripNilL x' of
+    BoolL True := BoolL False -> Right (t, BoolL True)
+    BoolL False := BoolL True -> Right (t, BoolL True)
+    BoolL _ := BoolL _ -> Right (t, BoolL False)
+    _ -> Left "Type Error: 'xor' takes two Bools"
 
-notL :: State -> State
-notL (t, x) = case stripNilL $ sexp $ eval (t, x) of
-  BoolL True -> (t, BoolL False)
-  BoolL False -> (t, BoolL True)
-  _ -> (t, ErrorL "Type Error: 'not' takes one Bool")
+notL :: State -> Either Error State
+notL (t, x) = do
+  (_, x') <- eval (t, x)
+  case stripNilL x' of
+    BoolL True -> Right (t, BoolL False)
+    BoolL False -> Right (t, BoolL True)
+    _ -> Left "Type Error: 'not' takes one Bool"
 
-ifL :: State -> State
-ifL (t, p := d := e := NilL) = case stripNilL $ sexp $ eval (t, p) of
-  BoolL True -> eval (t, d)
-  BoolL False -> eval (t, e)
-  _ -> (t, ErrorL "Type Error: 'if' takes one Bool and two expressions")
+ifL :: State -> Either Error State
+ifL (t, p := d := e := NilL) = do
+  (_, p') <- eval (t, p)
+  case stripNilL p' of
+    BoolL True -> eval (t, d)
+    BoolL False -> eval (t, e)
+    _ -> Left "Type Error: 'if' takes one Bool and two expressions"
 
 bools :: Table
 bools =
@@ -209,5 +219,7 @@ stripNilL = \case
   x := y -> stripNilL x := stripNilL y
   x -> x
 
-runEval :: Sexp -> Sexp
-runEval x = stripNilL $ sexp $ eval (builtins, x)
+runEval :: Sexp -> Either Error Sexp
+runEval x = do
+  (_, x') <- eval (builtins, x)
+  Right $ stripNilL x'
